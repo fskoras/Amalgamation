@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 from argparse import ArgumentParser
 
@@ -52,7 +53,7 @@ if __name__ == '__main__':
     tu = TranslationUnit.from_source(source, args)
 
     for diagnostic in tu.diagnostics:
-        print(f"Error occurred while parsing: {source}")
-        print(diagnostic)
+        print(f"Error occurred while parsing: {source}", file=sys.stderr)
+        print(diagnostic, file=sys.stderr)
 
     visitor(tu.cursor)
