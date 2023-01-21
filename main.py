@@ -56,9 +56,16 @@ class Amalgamation:
 
     def dump(self, output):
         if not self.content:
-            _log.warning("Dumping empty content. Did you forgot to parse it?")
+            _log.warning("Empty content. Did you forgot to parse it?")
+
         with open(output, mode="w+") as fp:
             fp.write(self.content)
+
+    def print(self):
+        if not self.content:
+            _log.warning("Empty content. Did you forgot to parse it?")
+
+        print(self.content)
 
 
 if __name__ == '__main__':
