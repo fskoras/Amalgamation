@@ -1,6 +1,7 @@
 import os
 import sys
 import logging
+from typing import Dict
 from pathlib import Path
 from argparse import ArgumentParser
 
@@ -13,8 +14,24 @@ logging.basicConfig()
 _log = logging.getLogger(__name__)
 
 
+class Symbol:
+    def __init__(self, cursor: Cursor):
+        self.cursor = cursor
+
+
+class Variable(Symbol):
+    def __init__(self, cursor: Cursor):
+        super().__init__(cursor)
+
+
+class Function(Symbol):
+    def __init__(self, cursor: Cursor):
+        super().__init__(cursor)
+
+
 class Amalgamation:
     content: str = ""
+    symbols: Dict[str, Symbol] = {}
 
     @staticmethod
     def __produce_location_str(cursor: Cursor) -> str:
@@ -35,15 +52,28 @@ class Amalgamation:
         location_str = f"  // {self.__produce_location_str(cursor)}" if with_location else ""
         return f"{self.__produce_declaration_str(cursor)}({args});{location_str}"
 
-    def visitor(self, cursor: Cursor, parent: Cursor = None, level=0):
+    def _add_symbol(self, cursor):
+        usr = cursor.get_usr()
+        if usr in self.symbols.keys():
+            _log.debug(f"Symbol duplicate: {cursor.spelling}")
+
+        if cursor.kind == CursorKind.VAR_DECL:
+            self.symbols[usr] = Variable(cursor)
+            self.content += self._variable_declaration_str(cursor) + "\n"
+
+        if cursor.kind == CursorKind.FUNCTION_DECL:
+            self.symbols[usr] = Function(cursor)
+            self.content += self._function_declaration_str(cursor) + "\n"
+
+    def _symbol_visitor(self, cursor: Cursor, parent: Cursor = None, level=0):
+        """visit nodes and """
         if parent:
             if parent.kind.is_translation_unit():
-                if cursor.kind == CursorKind.VAR_DECL:
-                    self.content += self._variable_declaration_str(cursor) + "\n"
-                if cursor.kind == CursorKind.FUNCTION_DECL:
-                    self.content += self._function_declaration_str(cursor) + "\n"
+                if cursor.kind == CursorKind.VAR_DECL or cursor.kind == CursorKind.FUNCTION_DECL:
+                    self._add_symbol(cursor)
+
         for child in cursor.get_children():
-            self.visitor(child, cursor, level + 1)
+            self._symbol_visitor(child, cursor, level + 1)
 
     def parse(self, source):
         tu = TranslationUnit.from_source(source, None)
@@ -52,20 +82,20 @@ class Amalgamation:
             print(f"Error occurred while parsing: {source}", file=sys.stderr)
             print(diagnostic, file=sys.stderr)
 
-        self.visitor(tu.cursor)
+        self._symbol_visitor(tu.cursor)
+
+    def get_content(self):
+        if not self.content:
+            _log.warning("Empty content. Did you forgot to parse it?")
+
+        return self.content
 
     def dump(self, output):
-        if not self.content:
-            _log.warning("Empty content. Did you forgot to parse it?")
-
         with open(output, mode="w+") as fp:
-            fp.write(self.content)
+            fp.write(self.get_content())
 
     def print(self):
-        if not self.content:
-            _log.warning("Empty content. Did you forgot to parse it?")
-
-        print(self.content)
+        print(self.get_content())
 
 
 if __name__ == '__main__':
