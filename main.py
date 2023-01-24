@@ -151,9 +151,9 @@ class Amalgamation:
 
 
 if __name__ == '__main__':
-    ap = ArgumentParser(description="Create source code amalgamation ")
-    ap.add_argument("SOURCE", nargs="+")
-    ap.add_argument("-o", "--output", type=Path, help="specify a file to dump the generated content")
+    ap = ArgumentParser(description="Create C/C++ source code amalgamation")
+    ap.add_argument("SOURCE", nargs="+", help="C/C++ source files")
+    ap.add_argument("-o", "--output", type=Path, help="Output to a specific file instead of stdout")
     args = ap.parse_args()
 
     sources = [Path(p) for p in args.SOURCE]
