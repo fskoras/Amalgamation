@@ -1,7 +1,7 @@
 import os
 import sys
 import logging
-from typing import Dict
+from typing import List, Dict
 from pathlib import Path
 from argparse import ArgumentParser
 from collections import defaultdict
@@ -126,14 +126,15 @@ class Amalgamation:
         for child in cursor.get_children():
             self._symbol_visitor(child, cursor, level + 1)
 
-    def parse(self, source):
-        tu = TranslationUnit.from_source(source, None)
+    def parse(self, sources: List[Path]):
+        for source in sources:
+            tu = TranslationUnit.from_source(source, None)
 
-        for diagnostic in tu.diagnostics:
-            _log.error(f"Error occurred while parsing: {source}")
-            _log.error(diagnostic)
+            for diagnostic in tu.diagnostics:
+                _log.error(f"Error occurred while parsing: {source}")
+                _log.error(diagnostic)
 
-        self._symbol_visitor(tu.cursor)
+            self._symbol_visitor(tu.cursor)
 
     def get_content(self):
         if not self.content:
@@ -151,13 +152,21 @@ class Amalgamation:
 
 if __name__ == '__main__':
     ap = ArgumentParser(description="Create source code amalgamation ")
+    ap.add_argument("SOURCE", nargs="+")
     ap.add_argument("-o", "--output", type=Path, help="specify a file to dump the generated content")
-    ap.add_argument("SOURCE", nargs='?')
     args = ap.parse_args()
 
-    source = args.SOURCE
-    output = args.output
+    sources = [Path(p) for p in args.SOURCE]
+    for source in sources:
+        if not source.exists():
+            _log.error(f"Input source path does not exist: {source}")
+            sys.exit(1)
 
     amalgamation = Amalgamation()
-    amalgamation.parse(source=source)
-    amalgamation.dump(output=output)
+    amalgamation.parse(sources=sources)
+
+    output = args.output
+    if output is not None:
+        amalgamation.dump(output=output)
+    else:
+        amalgamation.print()
