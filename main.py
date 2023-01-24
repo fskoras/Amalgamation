@@ -4,6 +4,7 @@ import logging
 from typing import Dict
 from pathlib import Path
 from argparse import ArgumentParser
+from collections import defaultdict
 
 from clang.cindex import TranslationUnit, SourceLocation
 from clang.cindex import Cursor, CursorKind
@@ -12,6 +13,56 @@ from clang.cindex import Type, TypeKind
 
 logging.basicConfig()
 _log = logging.getLogger(__name__)
+
+
+class Graph:
+    """Graph utilities"""
+    def __init__(self, vertices):
+        self.graph = defaultdict(list)  # dictionary containing adjacency List
+        self.V = vertices  # No. of vertices
+
+    def add_edge(self, u, v):
+        """function to add an edge to graph"""
+        self.graph[u].append(v)
+
+    def _topological_sort_util(self, v, visited, stack):
+        """A recursive function used by 'topological_sort'"""
+        # Mark the current node as visited.
+        visited[v] = True
+
+        # Recur for all the vertices adjacent to this vertex
+        for i in self.graph[v]:
+            if visited[i] == False:
+                self._topological_sort_util(i, visited, stack)
+
+        # Push current vertex to stack which stores result
+        stack.insert(0, v)
+
+    def topological_sort(self):
+        """The function to do Topological Sort. It uses recursive '_topological_sort_util'
+
+        >>> g = Graph(6)
+        >>> g.add_edge(5, 2)
+        >>> g.add_edge(5, 0)
+        >>> g.add_edge(4, 0)
+        >>> g.add_edge(4, 1)
+        >>> g.add_edge(2, 3)
+        >>> g.add_edge(3, 1)
+        >>> g.topological_sort()
+        [5, 4, 2, 3, 1, 0]
+        """
+        # Mark all the vertices as not visited
+        visited = [False] * self.V
+        stack = []
+
+        # Call the recursive helper function to store Topological
+        # Sort starting from all vertices one by one
+        for i in range(self.V):
+            if not visited[i]:
+                self._topological_sort_util(i, visited, stack)
+
+        # Print contents of stack
+        print(stack)
 
 
 class Symbol:
