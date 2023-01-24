@@ -79,8 +79,8 @@ class Amalgamation:
         tu = TranslationUnit.from_source(source, None)
 
         for diagnostic in tu.diagnostics:
-            print(f"Error occurred while parsing: {source}", file=sys.stderr)
-            print(diagnostic, file=sys.stderr)
+            _log.error(f"Error occurred while parsing: {source}")
+            _log.error(diagnostic)
 
         self._symbol_visitor(tu.cursor)
 
