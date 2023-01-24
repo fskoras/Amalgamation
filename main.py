@@ -69,39 +69,40 @@ class Symbol:
     def __init__(self, cursor: Cursor):
         self.cursor = cursor
 
+    def get_declaration_text(self) -> str:
+        raise NotImplementedError
+
+    def get_location_text(self) -> str:
+        loc = self.cursor.location
+        return f"{loc.file.name}:{loc.line}:{loc.column}"
+
+
+def _declaration_text(cursor: Cursor) -> str:
+    return f"{cursor.type.spelling} {cursor.spelling}"
+
 
 class Variable(Symbol):
     def __init__(self, cursor: Cursor):
         super().__init__(cursor)
+
+    def get_declaration_text(self) -> str:
+        return f"extern {_declaration_text(self.cursor)};"
 
 
 class Function(Symbol):
     def __init__(self, cursor: Cursor):
         super().__init__(cursor)
 
+    def get_declaration_text(self) -> str:
+        arguments = self.cursor.get_arguments()
+        arguments = ", ".join([_declaration_text(arg) for arg in arguments])
+        ret_type = self.cursor.result_type
+        return f"{ret_type.spelling} {self.cursor.spelling}({arguments});"
+
 
 class Amalgamation:
     content: str = ""
     symbols: Dict[str, Symbol] = {}
-
-    @staticmethod
-    def __produce_location_str(cursor: Cursor) -> str:
-        loc = cursor.location
-        return f"{loc.file.name}:{loc.line}:{loc.column}"
-
-    @staticmethod
-    def __produce_declaration_str( cursor: Cursor) -> str:
-        return f"{cursor.type.spelling} {cursor.spelling}"
-
-    def _variable_declaration_str(self, cursor: Cursor, with_location: bool = True):
-        loc: SourceLocation = cursor.location
-        location_str = f"  // {self.__produce_location_str(cursor)}" if with_location else ""
-        return f"extern {cursor.result_type.spelling} {cursor.spelling};{location_str}"
-
-    def _function_declaration_str(self, cursor: Cursor, with_location: bool = True):
-        args = ", ".join([self.__produce_declaration_str(d) for d in cursor.get_arguments()])
-        location_str = f"  // {self.__produce_location_str(cursor)}" if with_location else ""
-        return f"{self.__produce_declaration_str(cursor)}({args});{location_str}"
 
     def _add_symbol(self, cursor):
         usr = cursor.get_usr()
@@ -109,12 +110,14 @@ class Amalgamation:
             _log.debug(f"Symbol duplicate: {cursor.spelling}")
 
         if cursor.kind == CursorKind.VAR_DECL:
-            self.symbols[usr] = Variable(cursor)
-            self.content += self._variable_declaration_str(cursor) + "\n"
+            var = Variable(cursor)
+            self.symbols[usr] = var
+            self.content += f"{var.get_declaration_text()}  // {var.get_location_text()}\n"
 
         if cursor.kind == CursorKind.FUNCTION_DECL:
-            self.symbols[usr] = Function(cursor)
-            self.content += self._function_declaration_str(cursor) + "\n"
+            func = Function(cursor)
+            self.symbols[usr] = func
+            self.content += f"{func.get_declaration_text()}  // {func.get_location_text()}\n"
 
     def _symbol_visitor(self, cursor: Cursor, parent: Cursor = None, level=0):
         """visit nodes and """
