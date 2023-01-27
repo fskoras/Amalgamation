@@ -76,9 +76,22 @@ class Symbol:
         loc = self.cursor.location
         return f"{loc.file.name}:{loc.line}:{loc.column}"
 
+    @property
+    def name(self):
+        return self.cursor.mangled_name
+
 
 def _declaration_text(cursor: Cursor) -> str:
     return f"{cursor.type.spelling} {cursor.spelling}"
+
+
+class _Type:
+    def __init__(self, t: Type):
+        self._type = t
+
+    @property
+    def name(self):
+        return self._type.spelling
 
 
 class Variable(Symbol):
@@ -88,10 +101,22 @@ class Variable(Symbol):
     def get_declaration_text(self) -> str:
         return f"extern {_declaration_text(self.cursor)};"
 
+    @property
+    def type(self):
+        return _Type(self.cursor.type)
+
 
 class Function(Symbol):
     def __init__(self, cursor: Cursor):
         super().__init__(cursor)
+
+    @property
+    def type(self):
+        return _Type(self.cursor.result_type)
+
+    @property
+    def arguments(self):
+        return [Variable(a) for a in self.cursor.get_arguments()]
 
     def get_declaration_text(self) -> str:
         arguments = self.cursor.get_arguments()
