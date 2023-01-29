@@ -17,13 +17,18 @@ _log = logging.getLogger(__name__)
 
 class Graph:
     """Graph utilities"""
-    def __init__(self, vertices):
-        self.graph = defaultdict(list)  # dictionary containing adjacency List
-        self.V = vertices  # No. of vertices
+    def __init__(self):
+        self._graph = defaultdict(list)  # dictionary containing adjacency List
+        self._nodes = set()
+
+    @property
+    def nodes_count(self):
+        return len(self._nodes)
 
     def add_edge(self, u, v):
         """function to add an edge to graph"""
-        self.graph[u].append(v)
+        self._nodes.update((u, v,))
+        self._graph[u].append(v)
 
     def _topological_sort_util(self, v, visited, stack):
         """A recursive function used by 'topological_sort'"""
@@ -31,8 +36,8 @@ class Graph:
         visited[v] = True
 
         # Recur for all the vertices adjacent to this vertex
-        for i in self.graph[v]:
-            if visited[i] == False:
+        for i in self._graph[v]:
+            if not visited[i]:
                 self._topological_sort_util(i, visited, stack)
 
         # Push current vertex to stack which stores result
@@ -41,7 +46,7 @@ class Graph:
     def topological_sort(self):
         """The function to do Topological Sort. It uses recursive '_topological_sort_util'
 
-        >>> g = Graph(6)
+        >>> g = Graph()
         >>> g.add_edge(5, 2)
         >>> g.add_edge(5, 0)
         >>> g.add_edge(4, 0)
@@ -52,12 +57,12 @@ class Graph:
         [5, 4, 2, 3, 1, 0]
         """
         # Mark all the vertices as not visited
-        visited = [False] * self.V
+        visited = [False] * self.nodes_count
         stack = []
 
         # Call the recursive helper function to store Topological
         # Sort starting from all vertices one by one
-        for i in range(self.V):
+        for i in range(self.nodes_count):
             if not visited[i]:
                 self._topological_sort_util(i, visited, stack)
 
@@ -126,8 +131,10 @@ class Function(Symbol):
 
 
 class Amalgamation:
-    content: str = ""
-    symbols: Dict[str, Symbol] = {}
+    def __init__(self):
+        self.content: str = ""
+        self.symbols: Dict[str, Symbol] = {}
+        self.graph: Graph = Graph()
 
     def _add_symbol(self, cursor):
         usr = cursor.get_usr()
