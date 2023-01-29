@@ -29,7 +29,7 @@ class Graph:
         return len(self._nodes)
 
     def add_edge(self, u, v):
-        """function to add an edge to graph"""
+        """function to add an edge to graph (u -> v)"""
         self._nodes.update((u, v,))
         self._graph[u].append(v)
 
@@ -46,8 +46,11 @@ class Graph:
         # Push current vertex to stack which stores result
         stack.insert(0, v)
 
-    def topological_sort(self):
+    def topological_sort(self) -> List:
         """The function to do Topological Sort. It uses recursive '_topological_sort_util'
+
+        Returns:
+            List of sorted nodes
 
         >>> g = Graph()
         >>> g.add_edge(5, 2)
@@ -69,8 +72,7 @@ class Graph:
             if not visited[i]:
                 self._topological_sort_util(i, visited, stack)
 
-        # Print contents of stack
-        print(stack)
+        return stack
 
 
 class Symbol:
