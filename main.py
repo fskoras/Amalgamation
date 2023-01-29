@@ -137,7 +137,6 @@ class Function(Symbol):
 
 class Amalgamation:
     def __init__(self):
-        self.content: str = ""
         self.symbols: Dict[str, Symbol] = {}
         self.graph: Graph = Graph()
 
@@ -145,16 +144,15 @@ class Amalgamation:
         usr = cursor.get_usr()
         if usr in self.symbols.keys():
             _log.debug(f"Symbol duplicate: {cursor.spelling}")
+            return
 
         if cursor.kind == CursorKind.VAR_DECL:
             var = Variable(cursor)
             self.symbols[usr] = var
-            self.content += f"{var.get_declaration_text()}  // {var.get_location_text()}\n"
 
         if cursor.kind == CursorKind.FUNCTION_DECL:
             func = Function(cursor)
             self.symbols[usr] = func
-            self.content += f"{func.get_declaration_text()}  // {func.get_location_text()}\n"
 
     def _symbol_visitor(self, cursor: Cursor, parent: Cursor = None, level=0):
         """visit nodes and """
@@ -177,10 +175,15 @@ class Amalgamation:
             self._symbol_visitor(tu.cursor)
 
     def get_content(self):
-        if not self.content:
-            _log.warning("Empty content. Did you forgot to parse it?")
+        content = ""
 
-        return self.content
+        for symbol in self.symbols.values():
+            content += f"{symbol.get_declaration_text()}  // {symbol.get_location_text()}\n"
+
+        if not content:
+            _log.warning("Content is empty. You need to parse something first!")
+
+        return content
 
     def dump(self, output):
         with open(output, mode="w+") as fp:
