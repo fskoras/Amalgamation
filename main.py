@@ -21,6 +21,9 @@ class Graph:
         self._graph = defaultdict(list)  # dictionary containing adjacency List
         self._nodes = set()
 
+    def __len__(self):
+        return self.nodes_count
+
     @property
     def nodes_count(self):
         return len(self._nodes)
