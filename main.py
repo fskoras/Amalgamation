@@ -1,7 +1,7 @@
 import os
 import sys
 import logging
-from typing import List, Dict
+from typing import List, Dict, Hashable
 from pathlib import Path
 from argparse import ArgumentParser
 from collections import defaultdict
@@ -28,23 +28,24 @@ class Graph:
     def nodes_count(self):
         return len(self._nodes)
 
-    def add_edge(self, u, v):
-        """function to add an edge to graph (u -> v)"""
-        self._nodes.update((u, v,))
+    def add_edge(self, u: Hashable, v: Hashable):
+        """function to add an edge to graph between any 2 hashable nodes (u -> v)"""
+        assert u is not v, "You can't add edge to self"
+        self._nodes.update({u, v})
         self._graph[u].append(v)
 
-    def _topological_sort_util(self, v, visited, stack):
+    def _topological_sort_util(self, node, visited, stack):
         """A recursive function used by 'topological_sort'"""
         # Mark the current node as visited.
-        visited[v] = True
+        visited[node] = True
 
         # Recur for all the vertices adjacent to this vertex
-        for i in self._graph[v]:
+        for i in self._graph[node]:
             if not visited[i]:
                 self._topological_sort_util(i, visited, stack)
 
         # Push current vertex to stack which stores result
-        stack.insert(0, v)
+        stack.insert(0, node)
 
     def topological_sort(self) -> List:
         """The function to do Topological Sort. It uses recursive '_topological_sort_util'
@@ -62,15 +63,15 @@ class Graph:
         >>> g.topological_sort()
         [5, 4, 2, 3, 1, 0]
         """
+
         # Mark all the vertices as not visited
-        visited = [False] * self.nodes_count
+        visited = {k: False for k in self._nodes}
         stack = []
 
-        # Call the recursive helper function to store Topological
-        # Sort starting from all vertices one by one
-        for i in range(self.nodes_count):
-            if not visited[i]:
-                self._topological_sort_util(i, visited, stack)
+        # Call the recursive helper function to store Topological Sort starting from all vertices one by one
+        for node in visited.keys():
+            if not visited[node]:
+                self._topological_sort_util(node, visited, stack)
 
         return stack
 
