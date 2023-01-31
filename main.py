@@ -76,7 +76,22 @@ class Graph:
         return stack
 
 
-class Symbol:
+def _cursor_location_text(cursor: Cursor) -> str:
+    loc = cursor.location
+    if not loc.file:
+        return ""
+    return f"{loc.file.name}:{loc.line}:{loc.column}"
+
+
+class Declaration:
+    def get_declaration_text(self) -> str:
+        raise NotImplementedError
+
+    def get_location_text(self) -> str:
+        raise NotImplementedError
+
+
+class Symbol(Declaration):
     def __init__(self, cursor: Cursor):
         self.cursor = cursor
 
@@ -84,25 +99,76 @@ class Symbol:
         raise NotImplementedError
 
     def get_location_text(self) -> str:
-        loc = self.cursor.location
-        return f"{loc.file.name}:{loc.line}:{loc.column}"
+        return _cursor_location_text(self.cursor)
 
     @property
     def name(self):
         return self.cursor.mangled_name
+
+    @property
+    def usr(self):
+        """Unified Symbol Resolution"""
+        return str(self.cursor.get_usr())
+
+    def __hash__(self):
+        return hash(self.usr)
+
+    def __eq__(self, other: "Symbol"):
+        if not isinstance(other, type(self)):
+            return False
+
+        return self.usr == other.usr
+
+    def __repr__(self):
+        return f"Symbol({self.name})"
 
 
 def _declaration_text(cursor: Cursor) -> str:
     return f"{cursor.type.spelling} {cursor.spelling}"
 
 
-class _Type:
+class _Type(Declaration):
     def __init__(self, t: Type):
         self._type = t
+        pass
+
+    @property
+    def is_basic(self) -> bool:
+        """Is basic type (int, float, ...)"""
+        kind = self._type.kind.value
+        result = TypeKind.VOID.value <= kind <= TypeKind.NULLPTR.value
+        return result
+
+    @property
+    def cursor(self) -> Cursor:
+        return self._type.get_declaration()
+
+    @property
+    def usr(self):
+        return str(self.cursor.get_usr())
+
+    def __hash__(self):
+        return hash(self.usr)
+
+    def __eq__(self, other: "Symbol"):
+        if not isinstance(other, type(self)):
+            return False
+
+        return self.usr == other.usr
+
+    def __repr__(self):
+        return f"_Type({self.name})"
 
     @property
     def name(self):
         return self._type.spelling
+
+    def get_declaration_text(self) -> str:
+        # TODO: figure out how to resolve complex types
+        return f"/* {self.__repr__()} */"
+
+    def get_location_text(self) -> str:
+        return _cursor_location_text(self.cursor)
 
 
 class Variable(Symbol):
@@ -138,22 +204,45 @@ class Function(Symbol):
 
 class Amalgamation:
     def __init__(self):
-        self.symbols: Dict[str, Symbol] = {}
+        self.usr: Dict[str, Symbol] = {}
         self.graph: Graph = Graph()
+
+    def _add_variable(self, variable: Variable):
+        """register 'Variable' object to graph"""
+        type_ = None if variable.type.is_basic else variable.type
+
+        # add dependent types to graph
+        self.graph.add_edge(type_, variable)
+
+        # keep track of unique variables using USR (Unified Symbol Resolution)
+        self.usr[variable.usr] = variable
+
+    def _add_function(self, function: Function):
+        """register 'Function' object to graph"""
+        type_ = None if function.type.is_basic else function.type
+
+        # add dependent return type to graph
+        self.graph.add_edge(type_, function)
+
+        # add dependent argument types to graph
+        for argument in function.arguments:
+            type_ = None if argument.type.is_basic else argument.type
+            self.graph.add_edge(type_, function)
+
+        # keep track of unique variables using USR (Unified Symbol Resolution)
+        self.usr[function.usr] = function
 
     def _add_symbol(self, cursor):
         usr = cursor.get_usr()
-        if usr in self.symbols.keys():
+        if usr in self.usr.keys():
             _log.debug(f"Symbol duplicate: {cursor.spelling}")
-            return
+            return  # skip
 
         if cursor.kind == CursorKind.VAR_DECL:
-            var = Variable(cursor)
-            self.symbols[usr] = var
+            self._add_variable(Variable(cursor))
 
         if cursor.kind == CursorKind.FUNCTION_DECL:
-            func = Function(cursor)
-            self.symbols[usr] = func
+            self._add_function(Function(cursor))
 
     def _symbol_visitor(self, cursor: Cursor, parent: Cursor = None, level=0):
         """visit nodes and """
@@ -175,11 +264,19 @@ class Amalgamation:
 
             self._symbol_visitor(tu.cursor)
 
+    def get_declarations(self) -> List:
+        return self.graph.topological_sort()
+
     def get_content(self):
         content = ""
 
-        for symbol in self.symbols.values():
-            content += f"{symbol.get_declaration_text()}  // {symbol.get_location_text()}\n"
+        sorted_usr = self.get_declarations()
+
+        for decl in sorted_usr:
+            if decl is None:
+                continue
+
+            content += f"{decl.get_declaration_text()}  // {decl.get_location_text()}\n"
 
         if not content:
             _log.warning("Content is empty. You need to parse something first!")
