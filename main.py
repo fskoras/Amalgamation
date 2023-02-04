@@ -187,7 +187,7 @@ class Amalgamation:
             self._add_function(Function(cursor))
 
     def _symbol_visitor(self, cursor: Cursor, parent: Cursor = None, level=0):
-        """visit nodes and """
+        """visit recursively all nodes and register global symbols"""
         if parent:
             if parent.kind.is_translation_unit():
                 if cursor.kind == CursorKind.VAR_DECL or cursor.kind == CursorKind.FUNCTION_DECL:
@@ -197,6 +197,7 @@ class Amalgamation:
             self._symbol_visitor(child, cursor, level + 1)
 
     def parse(self, sources: List[Path]):
+        """Produce AST for all sources and run it through symbols visitor"""
         for source in sources:
             tu = TranslationUnit.from_source(source, None)
 
@@ -206,10 +207,12 @@ class Amalgamation:
 
             self._symbol_visitor(tu.cursor)
 
-    def get_declarations(self) -> List:
+    def get_declarations(self) -> List[Declaration]:
+        """Return list of prepared and sorted declarations"""
         return self.graph.topological_sort()
 
-    def get_content(self):
+    def get_content(self) -> str:
+        """Return parsed content"""
         content = ""
 
         sorted_usr = self.get_declarations()
@@ -225,11 +228,13 @@ class Amalgamation:
 
         return content
 
-    def dump(self, output):
-        with open(output, mode="w+") as fp:
+    def dump(self, file: PathLike):
+        """Dump content to file"""
+        with open(file, mode="w+") as fp:
             fp.write(self.get_content())
 
     def print(self):
+        """Print content on stdout"""
         print(self.get_content())
 
 
@@ -250,6 +255,6 @@ if __name__ == '__main__':
 
     output = args.output
     if output is not None:
-        amalgamation.dump(output=output)
+        amalgamation.dump(file=output)
     else:
         amalgamation.print()
