@@ -26,6 +26,9 @@ def _cursor_location_text(cursor: Cursor) -> str:
 
 
 class Declaration:
+    def get_cursor(self) -> Cursor:
+        raise NotImplementedError
+
     def get_declaration_text(self) -> str:
         raise NotImplementedError
 
@@ -36,6 +39,9 @@ class Declaration:
 class Symbol(Declaration):
     def __init__(self, cursor: Cursor):
         self.cursor = cursor
+
+    def get_cursor(self) -> Cursor:
+        return self.cursor
 
     def get_declaration_text(self) -> str:
         raise NotImplementedError
@@ -73,6 +79,13 @@ class _Type(Declaration):
     def __init__(self, t: Type):
         self._type = t
         pass
+
+    def get_cursor(self) -> Cursor:
+        return self.cursor
+
+    @property
+    def kind(self) -> TypeKind:
+        return self._type.kind
 
     @property
     def is_basic(self) -> bool:
@@ -149,10 +162,26 @@ class Amalgamation:
         self.usr: Dict[str, Symbol] = {}
         self.graph: Graph = Graph()
 
-    @staticmethod
-    def _register_type_dependencies(t: _Type) -> List[Cursor]:
-        """TODO: type dependencies shall be searched for and registered to the global context"""
-        return []
+    def _resolve_typedef_declaration(self, cursor: Cursor):
+        pass
+
+    def _resolve_elaborated_declaration(self, cursor: Cursor):
+        pass
+
+    def _resolve_pointer_declaration(self, cursor: Cursor):
+        pass
+
+    def _resolve_type_dependencies(self, t: _Type):
+        """pass type declaration processing to the correct resolve function"""
+        type_kind = t.kind
+        if type_kind == TypeKind.TYPEDEF:
+            self._resolve_typedef_declaration(t.cursor)
+        elif type_kind == TypeKind.ELABORATED:
+            self._resolve_elaborated_declaration(t.cursor)
+        elif type_kind == TypeKind.POINTER:
+            self._resolve_pointer_declaration(t.cursor)
+        else:
+            pass  # do nothing
 
     def _register_symbol(self, symbol: Symbol):
         """keep track of unique symbols using USR (Unified Symbol Resolution)"""
@@ -164,7 +193,7 @@ class Amalgamation:
 
         # add dependent types to graph
         self.graph.add_edge(type_, variable)
-        self._register_type_dependencies(type_)
+        self._resolve_type_dependencies(type_)
 
         self._register_symbol(variable)
 
@@ -174,13 +203,13 @@ class Amalgamation:
 
         # add dependent return type to graph
         self.graph.add_edge(type_, function)
-        self._register_type_dependencies(type_)
+        self._resolve_type_dependencies(type_)
 
         # add dependent argument types to graph
         for argument in function.arguments:
             type_ = None if argument.type.is_basic else argument.type
             self.graph.add_edge(type_, function)
-            self._register_type_dependencies(type_)
+            self._resolve_type_dependencies(type_)
 
         self._register_symbol(function)
 
