@@ -193,7 +193,7 @@ class Amalgamation:
 
         # add dependent types to graph
         self.graph.add_edge(type_, variable)
-        self._resolve_type_dependencies(type_)
+        self._resolve_type_dependencies(variable.type)
 
         self._register_symbol(variable)
 
@@ -203,13 +203,13 @@ class Amalgamation:
 
         # add dependent return type to graph
         self.graph.add_edge(type_, function)
-        self._resolve_type_dependencies(type_)
+        self._resolve_type_dependencies(function.type)
 
         # add dependent argument types to graph
         for argument in function.arguments:
             type_ = None if argument.type.is_basic else argument.type
             self.graph.add_edge(type_, function)
-            self._resolve_type_dependencies(type_)
+            self._resolve_type_dependencies(argument.type)
 
         self._register_symbol(function)
 
