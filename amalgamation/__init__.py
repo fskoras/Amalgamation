@@ -1,0 +1,1 @@
+from .amalgamation import Amalgamation
